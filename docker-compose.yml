@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 services:
   janus:
     image: ivadim/fruitnanny-janus
@@ -8,6 +8,7 @@ services:
     volumes:
       - ./configuration/janus:/etc/janus
       - ./configuration/ssl:/etc/fruitnanny-ssl
+      - ./hls:/hls
     expose:
       - 8088 # api http
       - 8089 # api https
@@ -21,12 +22,22 @@ services:
     network_mode: "host"
     depends_on:
       - janus
+    command: >
+      gst-launch-1.0 -v libcamerasrc !
+      video/x-raw,width=960,height=540,framerate=12/1 !
+      videoconvert !
+      x264enc tune=zerolatency bitrate=1000 key-int-max=24 !
+      h264parse !
+      mpegtsmux !
+      hlssink max-files=5 target-duration=1
+      location=/hls/segment%05d.ts
+      playlist-location=/hls/stream.m3u8
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       - /sys:/sys
       - /run/udev:/run/udev:ro
-    command: gst-launch-1.0 -v libcamerasrc ! video/x-raw,width=960,height=540,framerate=12/1 ! videoconvert ! x264enc tune=zerolatency bitrate=1000 ! h264parse ! rtph264pay config-interval=1 pt=96 ! queue ! udpsink host=127.0.0.1 port=5004 sync=false
+      - ./hls:/hls
 
   gstreamer-audio:
     image: fruitnanny-gstreamer
@@ -46,7 +57,10 @@ services:
     privileged: true
     volumes:
       - ./fruitnanny_config.js:/opt/fruitnanny/fruitnanny_config.js
-      - ./bin:/opt/fruitnanny/bin  
+      - ./bin:/opt/fruitnanny/bin
+      - ./views:/opt/fruitnanny/views
+      - ./public:/opt/fruitnanny/public
+      - ./server:/opt/fruitnanny/server
     network_mode: "host"
     depends_on:
       - janus
@@ -65,6 +79,7 @@ services:
       - ./configuration/nginx/fruitnanny_https:/etc/nginx/conf.d/default-ssl.conf
       - ./configuration/nginx/.htpasswd:/etc/nginx/.htpasswd
       - ./configuration/ssl:/etc/fruitnanny-ssl
+      - ./hls:/hls
     ports:
       - "80:80"
       - "443:443"
