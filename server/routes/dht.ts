@@ -11,12 +11,16 @@ router.get("/current", (req: express.Request, res: express.Response, next: expre
     // let result = { humidity: hum, temperature: temp };
     // res.json(result);
 
-    cp.exec("bin/dht22.py", (err, stdout, stderr) => {
-        let values = stdout.split(" ");
-        let t = values[0];
-        let h = values[1];
-        let result = { humidity: h, temperature: t };
-        res.json(result);
+    cp.exec("python3 bin/dht22.py", (err, stdout, stderr) => {
+        if (err) {
+            return res.status(500).json({ error: "sensor read failed" });
+        }
+        try {
+            const result = JSON.parse(stdout);
+            res.json(result);
+        } catch (e) {
+            res.status(500).json({ error: "invalid sensor output" });
+        }
     });
 });
 
