@@ -30,10 +30,22 @@ var StreamContext = (function() {
 
         gain = audioContext.createGain();
         gain.gain.value = 1;
-        
+
         source.connect(analyser);
         analyser.connect(gain)
-        
+
+        gain.connect(audioContext.destination);
+        initialized = true;
+    }
+
+    var initFromElement = function(element) {
+        source = audioContext.createMediaElementSource(element);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 4096;
+        gain = audioContext.createGain();
+        gain.gain.value = 1;
+        source.connect(analyser);
+        analyser.connect(gain);
         gain.connect(audioContext.destination);
         initialized = true;
     }
@@ -61,7 +73,7 @@ var StreamContext = (function() {
     }
 
     var pause_stream = function() {
-        if (!initialized) return;
+        if (!initialized || !current_stream) return false;
         resume_audiostream();
         var new_state = !current_stream.getVideoTracks()[0].enabled
         current_stream.getVideoTracks()[0].enabled = new_state;
@@ -133,6 +145,7 @@ var StreamContext = (function() {
 
     return {
         init: init,
+        initFromElement: initFromElement,
         set_volume: set_volume,
         mute: mute,
         onmute: onmute,
