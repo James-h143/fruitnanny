@@ -3,13 +3,13 @@ Description=FruitNanny video service
 After=network.target
 
 [Service]
-User=pi
+User=james
 Type=simple
-ExecStart=/opt/fruitnanny/bin/video.sh
+ExecStart=/home/james/Development/fruitnanny/bin/video.sh
 LimitNOFILE=65536
 Restart=always
 KillSignal=SIGTERM
-KillMode=process
+KillMode=control-group
 
 [Install]
 WantedBy=multi-user.target

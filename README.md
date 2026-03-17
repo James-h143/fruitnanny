@@ -16,6 +16,138 @@ As of writing it isn't perfect but all of the basic functionality has been resto
 
 I will be keeping track of any issues here on github, feel free to pick one up and create a PR if you want to contribute
 
+## Setup (this fork)
+
+Tested on Raspberry Pi 3B, aarch64, Debian Trixie, kernel 6.12. The original Docker-only setup no longer applies — video and audio pipelines now run as host systemd services to access hardware H.264 encoding via `rpicam-vid`.
+
+### Requirements
+
+- Raspberry Pi 3B or later (64-bit OS)
+- Raspberry Pi camera module
+- USB audio device (microphone)
+- DHT22 sensor on GPIO pin 24 (optional — temperature/humidity)
+
+### 1. Install Docker
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+### 2. Install host GStreamer packages
+
+The audio pipeline and HLS muxing run directly on the host via GStreamer. `rpicam-vid` (for camera + hardware H.264) is included in Debian Trixie's `rpicam-apps` package.
+
+```bash
+sudo apt install -y \
+  rpicam-apps \
+  gstreamer1.0-tools \
+  gstreamer1.0-plugins-base \
+  gstreamer1.0-plugins-good \
+  gstreamer1.0-plugins-bad \
+  gstreamer1.0-plugins-ugly \
+  gstreamer1.0-libcamera \
+  gstreamer1.0-alsa
+```
+
+### 3. Clone the repository
+
+```bash
+git clone https://github.com/james-h143/fruitnanny ~/fruitnanny
+cd ~/fruitnanny
+```
+
+### 4. Update pipeline paths
+
+`bin/video.sh` and `bin/audio.sh` contain the HLS output path. Update them to match your clone location:
+
+```bash
+sed -i "s|/home/james/Development/fruitnanny|$HOME/fruitnanny|g" bin/video.sh bin/audio.sh
+chmod +x bin/video.sh bin/audio.sh
+```
+
+### 5. Create the HLS output directory
+
+```bash
+mkdir hls
+```
+
+### 6. Generate SSL certificates
+
+```bash
+openssl req -x509 -sha256 -nodes -days 2650 -newkey rsa:2048 \
+  -keyout configuration/ssl/fruitnanny.key \
+  -out configuration/ssl/fruitnanny.pem
+```
+
+Set the Common Name to your Pi's hostname or IP address.
+
+### 7. Set up basic auth
+
+```bash
+echo -n 'fruitnanny:' >> configuration/nginx/.htpasswd
+openssl passwd -apr1 >> configuration/nginx/.htpasswd
+```
+
+### 8. Configure the monitor
+
+Edit `fruitnanny_config.js`:
+
+```js
+baby_name: "Your baby's name",
+baby_birthday: "YYYY-MM-DD",
+temp_unit: "C"  // or "F"
+```
+
+### 9. Install and enable systemd services
+
+```bash
+sudo cp configuration/systemd/video.service /etc/systemd/system/fruitnanny-video.service
+sudo cp configuration/systemd/audio.service /etc/systemd/system/fruitnanny-audio.service
+sudo systemctl daemon-reload
+sudo systemctl enable fruitnanny-video fruitnanny-audio
+sudo systemctl start fruitnanny-video fruitnanny-audio
+```
+
+Check they started cleanly:
+
+```bash
+sudo systemctl status fruitnanny-video fruitnanny-audio
+```
+
+### 10. Start the application
+
+```bash
+docker compose up -d
+```
+
+This starts only the Node.js app and nginx reverse proxy. The video and audio pipelines are managed by systemd.
+
+### 11. Access the monitor
+
+Navigate to `http://<pi-ip>/` in a browser. Use the credentials set in step 7.
+
+### Troubleshooting
+
+**Video not playing** — check the video service and confirm segments are being written:
+```bash
+sudo systemctl status fruitnanny-video
+ls -lt ~/fruitnanny/hls/segment*.ts | head -5
+```
+
+**Audio not playing** — check the audio service. If it fails with "Permission denied" on `audio.m3u8`, stale root-owned files from a previous run need clearing:
+```bash
+sudo rm -f ~/fruitnanny/hls/audio.m3u8 ~/fruitnanny/hls/audio-segment*.ts
+sudo systemctl reset-failed fruitnanny-audio && sudo systemctl start fruitnanny-audio
+```
+
+**Service won't restart cleanly** — if the service hits its restart limit:
+```bash
+sudo systemctl reset-failed fruitnanny-video  # or fruitnanny-audio
+sudo systemctl start fruitnanny-video
+```
+
 ##
 
 **Fruitnanny** is a code name for a DIY _geek_ baby monitor.

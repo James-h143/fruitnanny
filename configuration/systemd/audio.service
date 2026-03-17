@@ -3,9 +3,9 @@ Description=FruitNanny audio service
 After=network.target
 
 [Service]
-User=pi
+User=james
 Type=simple
-ExecStart=/opt/fruitnanny/bin/audio.sh
+ExecStart=/home/james/Development/fruitnanny/bin/audio.sh
 LimitNOFILE=65536
 Restart=always
 KillSignal=SIGTERM

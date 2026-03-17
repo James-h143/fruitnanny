@@ -1,2 +1,17 @@
 #!/bin/bash
-gst-launch-1.0 -v rpicamsrc name=src preview=0 exposure-mode=night fullscreen=0 bitrate=1000000 annotation-mode=time+date annotation-text-size=20 ! video/x-h264,width=960,height=540,framerate=12/1,profile=constrained-baseline ! queue max-size-bytes=0 max-size-buffers=0 ! h264parse ! rtph264pay config-interval=1 pt=96 ! queue ! udpsink host=127.0.0.1 port=5004  sync=false
+rpicam-vid \
+  --nopreview \
+  --inline \
+  -t 0 \
+  --width 640 \
+  --height 360 \
+  --framerate 8 \
+  --intra 8 \
+  --hflip \
+  --vflip \
+  -o - | \
+gst-launch-1.0 -v fdsrc ! \
+  h264parse config-interval=-1 ! \
+  hlssink2 max-files=10 target-duration=1 \
+    location=/home/james/Development/fruitnanny/hls/segment%05d.ts \
+    playlist-location=/home/james/Development/fruitnanny/hls/stream.m3u8
