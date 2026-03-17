@@ -7,17 +7,17 @@ services:
     restart: always
     privileged: true
     network_mode: "host"
-    command: >
-      gst-launch-1.0 -v libcamerasrc !
-      video/x-raw,width=960,height=540,framerate=12/1 !
-      videoconvert !
-      videoflip method=rotate-180 !
-      x264enc tune=zerolatency bitrate=1000 key-int-max=24 !
-      h264parse !
-      mpegtsmux !
-      hlssink max-files=10 target-duration=1
-      location=/hls/segment%05d.ts
-      playlist-location=/hls/stream.m3u8
+    command:
+      - sh
+      - -c
+      - >-
+        rpicam-vid --nopreview --inline -t 0
+        --width 640 --height 360 --framerate 8 --intra 8 --hflip --vflip -o - |
+        gst-launch-1.0 -v fdsrc !
+        h264parse config-interval=-1 !
+        hlssink2 max-files=10 target-duration=1
+        location=/hls/segment%05d.ts
+        playlist-location=/hls/stream.m3u8
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro

@@ -37,6 +37,8 @@ server/**/*.js
 public/thirdparty/js/hls.min.js
 # HLS segments
 hls/
+# Raspberry Pi apt keyring (copied locally by build.sh, not versioned)
+docker/gstreamer/raspberrypi-archive-keyring.pgp
 # Misc
 *.orig
 .DS_Store
