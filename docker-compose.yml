@@ -11,8 +11,8 @@ services:
       - sh
       - -c
       - >-
-        rpicam-vid --nopreview --inline -t 0
-        --width 640 --height 360 --framerate 8 --intra 8 --hflip --vflip -o - |
+        rpicam-vid --awbgains 1.0,1.0  --nopreview --inline -t 0
+        --width 1920 --height 1080 --framerate 30 --intra 8 --hflip --vflip -o - |
         gst-launch-1.0 -v fdsrc !
         h264parse config-interval=-1 !
         hlssink2 max-files=10 target-duration=1
