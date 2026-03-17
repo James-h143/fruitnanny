@@ -16,6 +16,103 @@ As of writing it isn't perfect but all of the basic functionality has been resto
 
 I will be keeping track of any issues here on github, feel free to pick one up and create a PR if you want to contribute
 
+## Setup (this fork)
+
+Tested on Raspberry Pi 3B, aarch64, Debian Trixie, kernel 6.12. Video and audio stream via HLS rather than WebRTC — all pipelines run in Docker.
+
+### Requirements
+
+- Raspberry Pi 3B or later (64-bit OS)
+- Raspberry Pi camera module
+- USB audio device (microphone)
+- DHT22 sensor on GPIO pin 24 (optional — temperature/humidity)
+
+### 1. Install Docker
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+### 2. Clone the repository
+
+```bash
+git clone https://github.com/james-h143/fruitnanny ~/fruitnanny
+cd ~/fruitnanny
+```
+
+### 3. Create the HLS output directory
+
+```bash
+mkdir hls
+```
+
+### 4. Generate SSL certificates
+
+```bash
+openssl req -x509 -sha256 -nodes -days 2650 -newkey rsa:2048 \
+  -keyout configuration/ssl/fruitnanny.key \
+  -out configuration/ssl/fruitnanny.pem
+```
+
+Set the Common Name to your Pi's hostname or IP address.
+
+### 5. Set up basic auth
+
+```bash
+echo -n 'fruitnanny:' >> configuration/nginx/.htpasswd
+openssl passwd -apr1 >> configuration/nginx/.htpasswd
+```
+
+### 6. Configure the monitor
+
+Edit `fruitnanny_config.js`:
+
+```js
+baby_name: "Your baby's name",
+baby_birthday: "YYYY-MM-DD",
+temp_unit: "C"  // or "F"
+```
+
+### 7. Build the Docker images
+
+The gstreamer image requires the Raspberry Pi apt repository, which uses a signing key that must be present on the host. `build.sh` handles this automatically:
+
+```bash
+chmod +x build.sh
+./build.sh
+```
+
+This copies the keyring from `/usr/share/keyrings/raspberrypi-archive-keyring.pgp` (present on all Raspberry Pi OS installs) and runs `docker compose build`. It will exit with an error if the keyring is not found.
+
+### 8. Start the application
+
+```bash
+docker compose up -d
+```
+
+### 9. Access the monitor
+
+Navigate to `http://<pi-ip>/` in a browser. Use the credentials set in step 5.
+
+### Troubleshooting
+
+**Video not playing** — check the gstreamer-video container:
+```bash
+docker compose logs gstreamer-video
+```
+
+**Audio not playing** — check the gstreamer-audio container:
+```bash
+docker compose logs gstreamer-audio
+```
+
+**Containers not starting** — check all container states:
+```bash
+docker compose ps
+```
+
 ##
 
 **Fruitnanny** is a code name for a DIY _geek_ baby monitor.
